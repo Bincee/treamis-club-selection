@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Student Club Data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss/dist/tailwind.min.css">
+  <script>
+    function filterData() {
+      const gradeFilter = document.getElementById('gradeFilter').value.toLowerCase();
+      const clubFilter = document.getElementById('clubFilter').value.toLowerCase();
+      const searchQuery = document.getElementById('searchBox').value.toLowerCase();
+      const rows = document.querySelectorAll('#studentTable tbody tr');
+
+      rows.forEach(row => {
+        const studentId = row.querySelector('.student-id').innerText.toLowerCase();
+        const name = row.querySelector('.name').innerText.toLowerCase();
+        const grade = row.querySelector('.grade').innerText.toLowerCase();
+        const club = row.querySelector('.club').innerText.toLowerCase();
+
+        const matchesGrade = !gradeFilter || grade === gradeFilter;
+        const matchesClub = !clubFilter || club.includes(clubFilter);
+        const matchesSearch = !searchQuery || studentId.includes(searchQuery) || name.includes(searchQuery);
+
+        row.style.display = (matchesGrade && matchesClub && matchesSearch) ? '' : 'none';
+      });
+    }
+  </script>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-6xl mx-auto bg-white shadow-lg p-6 rounded">
+    <h1 class="text-2xl font-bold mb-4">🎓 Student Club Admin Panel</h1>
+
+    <div class="mb-4 flex flex-wrap gap-4 items-center">
+      <input type="text" id="searchBox" oninput="filterData()" placeholder="Search by name or ID" class="border p-2 rounded w-64">
+      <input type="text" id="gradeFilter" oninput="filterData()" placeholder="Filter by Grade" class="border p-2 rounded w-40">
+      <input type="text" id="clubFilter" oninput="filterData()" placeholder="Filter by Club" class="border p-2 rounded w-40">
+      <a href="/admin/export" class="ml-auto bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">⬇️ Export CSV</a>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table id="studentTable" class="min-w-full table-auto border-collapse border">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border px-4 py-2">Student ID</th>
+            <th class="border px-4 py-2">Name</th>
+            <th class="border px-4 py-2">Grade</th>
+            <th class="border px-4 py-2">Club</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+            <tr class="bg-white hover:bg-blue-50">
+              <td class="border px-4 py-2 student-id">{{ student.student_id }}</td>
+              <td class="border px-4 py-2 name">{{ student.name }}</td>
+              <td class="border px-4 py-2 grade">{{ student.grade }}</td>
+              <td class="border px-4 py-2 club">{{ student.club }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
