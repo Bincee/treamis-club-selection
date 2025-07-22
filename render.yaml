@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: club-selection-app
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: firebase_key.json
+      - key: SECRET_KEY
+        value: your-secret-key
+      - key: ADMIN_USERNAME
+        value: admin@treamis.org
+      - key: ADMIN_PASSWORD
+        value: admin@2025
+    autoDeploy: true

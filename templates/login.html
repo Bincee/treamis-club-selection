@@ -2,24 +2,104 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Student Login</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss/dist/tailwind.min.css">
+  <title>Club Selection Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body {
+      background: #1e1e2f;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .login-container {
+      background-color: #2c2c3e;
+      padding: 30px 40px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.4);
+      max-width: 400px;
+      width: 100%;
+    }
+
+    .login-container h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #ffcc00;
+    }
+
+    .login-container form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .login-container input {
+      margin: 10px 0;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+    }
+
+    .login-container select {
+      margin: 10px 0;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+    }
+
+    .login-container button {
+      padding: 10px;
+      background-color: #ffcc00;
+      color: #000;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+
+    .login-container button:hover {
+      background-color: #e6b800;
+    }
+
+    .logo {
+      display: block;
+      margin: 0 auto 15px;
+      max-width: 100px;
+    }
+
+    .error {
+      color: #ff4d4d;
+      text-align: center;
+      margin-top: 10px;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-8 rounded shadow-md w-96">
-    <h2 class="text-2xl font-bold mb-4">Student Login</h2>
+<body>
+  <div class="login-container">
+    <img src="{{ url_for('static', filename='logo.jpg') }}" alt="School Logo" class="logo">
+    <h2>Login</h2>
+    
     {% if error %}
-      <div class="bg-red-100 text-red-700 p-2 rounded mb-4">{{ error }}</div>
+      <p class="error">{{ error }}</p>
     {% endif %}
-    <form method="POST">
-      <label for="student_id" class="block mb-2">Student ID</label>
-      <input type="text" name="student_id" class="w-full p-2 border rounded mb-4" required>
 
-      <label for="password" class="block mb-2">Password</label>
-      <input type="password" name="password" class="w-full p-2 border rounded mb-4" required>
+    <form method="POST" action="/login">
+  <label for="user_type">Login as:</label>
+  <select name="role" required>
+    <option value="student">Student</option>
+    <option value="admin">Admin</option>
+  </select>
 
-      <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Login</button>
-    </form>
+  <input type="text" name="email" placeholder="Email" required>
+  <input type="password" name="password" placeholder="Password" required>
+
+  <button type="submit">Login</button>
+</form>
+
   </div>
 </body>
 </html>

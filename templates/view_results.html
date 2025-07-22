@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Club Selection Results</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-xl p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-gray-800">Student Club Selections</h1>
+      <a href="/logout" class="text-red-500 hover:text-red-700 font-medium">Logout</a>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <input type="text" name="search" placeholder="Search by name or ID"
+             value="{{ request.args.get('search', '') }}"
+             class="px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring w-full">
+
+      <select name="grade_section" class="px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring w-full">
+        <option value="">All Grades</option>
+        {% for gs in grade_sections %}
+          <option value="{{ gs }}" {% if request.args.get('grade_section') == gs %}selected{% endif %}>{{ gs }}</option>
+        {% endfor %}
+      </select>
+
+      <select name="club_id" class="px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring w-full">
+        <option value="">All Clubs</option>
+        {% for club in clubs %}
+          <option value="{{ club.id }}" {% if request.args.get('club_id') == club.id|string %}selected{% endif %}>{{ club.name }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="md:col-span-3 flex justify-end">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded">
+          Apply Filters
+        </button>
+      </div>
+    </form>
+
+    <!-- Results Table -->
+    <div class="overflow-x-auto">
+      <table class="min-w-full table-auto border border-gray-300 shadow-sm">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-4 py-2 border">Student ID</th>
+            <th class="px-4 py-2 border">Name</th>
+            <th class="px-4 py-2 border">Grade & Section</th>
+            <th class="px-4 py-2 border">Club</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-2 border">{{ student.student_id }}</td>
+              <td class="px-4 py-2 border">{{ student.name }}</td>
+              <td class="px-4 py-2 border">{{ student.grade_section }}</td>
+              <td class="px-4 py-2 border">{{ student.club_name if student.club_name else '—' }}</td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="4" class="text-center text-gray-500 py-4">No results found.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
