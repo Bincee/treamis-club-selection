@@ -19,8 +19,14 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.getenv("SECRET_KEY", "default_secret")
 
 # Firebase Initialization
-cred_path = os.environ.get("FIREBASE_KEY_JSON")
-cred = credentials.Certificate(cred_path)
+import json
+
+firebase_key_path = os.environ.get("FIREBASE_KEY_PATH")  # Render's secret file env var
+with open(firebase_key_path) as f:
+    firebase_config = json.load(f)
+
+cred = credentials.Certificate(firebase_config)
+
 
 firebase_admin.initialize_app(cred)
 db = firestore.client()
