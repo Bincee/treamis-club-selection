@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: club-selection-app
+    name: fresh-club-selection-app
     runtime: python
     region: oregon
     plan: free
