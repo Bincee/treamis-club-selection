@@ -368,13 +368,20 @@ def admin_dashboard():
         return send_file(output, download_name="club_selections.xlsx", as_attachment=True)
     
     
-
     elif action == "clear":
+        # Clear student selections
         students = db.collection("students").stream()
         for s in students:
             db.collection("students").document(s.id).update({"SelectedClub": firestore.DELETE_FIELD})
-        flash("All selections cleared.", "success")
+        
+        # Reset all club member counts
+        clubs = db.collection("clubs").stream()
+        for c in clubs:
+            db.collection("clubs").document(c.id).update({"CurrentMembers": 0})
 
+        flash("All selections and club member counts cleared.", "success")
+
+    
     selection_doc = db.collection("config").document("deadline").get()
     selection_start = selection_doc.to_dict().get("start_time") if selection_doc.exists else None
     selection_end = selection_doc.to_dict().get("end_time") if selection_doc.exists else None
