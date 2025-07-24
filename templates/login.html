@@ -3,103 +3,72 @@
 <head>
   <meta charset="UTF-8">
   <title>Club Selection Login</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    body {
-      background: #1e1e2f;
-      font-family: 'Segoe UI', sans-serif;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-
     .login-container {
-      background-color: #2c2c3e;
-      padding: 30px 40px;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.4);
-      max-width: 400px;
-      width: 100%;
+      background-color: #2d3748;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      border: 1px solid #4a5568;
     }
-
-    .login-container h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #ffcc00;
+    .btn-primary {
+      background-color: #f6ad55;
+      transition: all 0.3s;
     }
-
-    .login-container form {
-      display: flex;
-      flex-direction: column;
+    .btn-primary:hover {
+      background-color: #ed8936;
+      transform: translateY(-2px);
     }
-
-    .login-container input {
-      margin: 10px 0;
-      padding: 10px;
-      font-size: 16px;
-      border: none;
-      border-radius: 5px;
+    .input-field:focus {
+      border-color: #f6ad55;
+      box-shadow: 0 0 0 3px rgba(246, 173, 85, 0.3);
     }
-
-    .login-container select {
-      margin: 10px 0;
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 5px;
-    }
-
-    .login-container button {
-      padding: 10px;
-      background-color: #ffcc00;
-      color: #000;
-      border: none;
-      border-radius: 5px;
-      font-weight: bold;
-      margin-top: 10px;
-      cursor: pointer;
-    }
-
-    .login-container button:hover {
-      background-color: #e6b800;
-    }
-
     .logo {
+      height: 80px;
+      margin: 0 auto;
       display: block;
-      margin: 0 auto 15px;
-      max-width: 100px;
-    }
-
-    .error {
-      color: #ff4d4d;
-      text-align: center;
-      margin-top: 10px;
+      object-fit: contain;
     }
   </style>
 </head>
-<body>
-  <div class="login-container">
-    <img src="{{ url_for('static', filename='logo.jpg') }}" alt="School Logo" class="logo">
-    <h2>Login</h2>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4">
+  <div class="login-container rounded-xl p-8 max-w-md w-full">
+    <div class="text-center mb-8">
+      <!-- Logo from static folder -->
+      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="School Logo" class="logo mb-4">
+      <h1 class="text-3xl font-bold text-yellow-400">Club Selection</h1>
+      <p class="text-gray-300 mt-2">Please login to continue</p>
+    </div>
     
     {% if error %}
-      <p class="error">{{ error }}</p>
+      <div class="bg-red-600 text-white p-3 rounded-lg mb-6 text-center">
+        {{ error }}
+      </div>
     {% endif %}
 
-    <form method="POST" action="/login">
-  <label for="user_type">Login as:</label>
-  <select name="role" required>
-    <option value="student">Student</option>
-    <option value="admin">Admin</option>
-  </select>
+    <form method="POST" action="/login" class="space-y-6">
+      <div>
+        <label class="block text-gray-300 mb-2">Login as:</label>
+        <select name="user_type" required 
+                class="w-full px-4 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-yellow-400 focus:outline-none input-field">
+          <option value="student">Student</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
 
-  <input type="text" name="email" placeholder="Email" required>
-  <input type="password" name="password" placeholder="Password" required>
+      <div>
+        <input type="email" name="user_id" placeholder="Email address" required 
+               class="w-full px-4 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-yellow-400 focus:outline-none input-field">
+      </div>
 
-  <button type="submit">Login</button>
-</form>
+      <div>
+        <input type="password" name="password" placeholder="Password" required 
+               class="w-full px-4 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-yellow-400 focus:outline-none input-field">
+      </div>
 
+      <button type="submit" class="btn-primary text-black font-bold py-3 px-6 rounded-lg w-full">
+        Login
+      </button>
+    </form>
   </div>
 </body>
 </html>

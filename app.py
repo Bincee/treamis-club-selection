@@ -1,273 +1,410 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 import os
 import pandas as pd
-import io
 from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, firestore
-from datetime import datetime, timezone, timedelta
-
-# Timezone and Selection Window
-IST = timezone(timedelta(hours=5, minutes=30))
-SELECTION_START = datetime(2025, 8, 2, 18, 0, tzinfo=IST)
-SELECTION_DEADLINE = datetime(2025, 8, 4, 18, 0, tzinfo=IST)
+from datetime import datetime
+import pytz
+from io import BytesIO
+import math
 
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = os.getenv("SECRET_KEY", "default_secret")
+app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "secret123")
 
-# Firebase Initialization
-import json
+# Firebase Admin SDK Initialization - Only do this once
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase_key.json")
+    firebase_admin.initialize_app(cred)
 
-firebase_key_path = os.environ.get("FIREBASE_KEY_PATH")  # Render's secret file env var
-with open(firebase_key_path) as f:
-    firebase_config = json.load(f)
-
-cred = credentials.Certificate(firebase_config)
-
-
-firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin@treamis.org")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin@2025")
+# Helper Functions
+def is_selection_open():
+    deadline_doc = db.collection("config").document("deadline").get()
+    if deadline_doc.exists:
+        data = deadline_doc.to_dict()
+        tz = pytz.timezone("Asia/Kolkata")
+        now = datetime.now(tz)
+        start = data.get("start_time")
+        end = data.get("end_time")
+        if start and end:
+            return start <= now <= end
+    return False
 
+def clean_student_data():
+    students_ref = db.collection("students")
+    for student in students_ref.stream():
+        data = student.to_dict()
+        updated = False
+        
+        # Standardize field names
+        if "StudentName" in data:
+            data["Name"] = data.pop("StudentName")
+            updated = True
+            
+        # Clean email format
+        if "EmailID" in data and isinstance(data["EmailID"], str):
+            data["EmailID"] = data["EmailID"].lower().strip()
+            updated = True
+            
+        # Convert password to number if possible
+        if "Password" in data and isinstance(data["Password"], str):
+            try:
+                data["Password"] = int(data["Password"])
+                updated = True
+            except ValueError:
+                pass
+        
+        # Remove NaN values and unnamed fields
+        keys_to_remove = [k for k in data 
+                         if (isinstance(data[k], float) and math.isnan(data[k])) 
+                         or str(k).startswith('Unnamed')]
+        
+        if keys_to_remove:
+            for key in keys_to_remove:
+                del data[key]
+            updated = True
+        
+        if updated:
+            students_ref.document(student.id).set(data)
+            print(f"Updated student {student.id}")
+
+# Routes
 @app.route('/')
 def home():
-    return render_template("login.html")
+    return redirect(url_for('login'))
 
-@app.route("/login", methods=["GET", "POST"])
-def login():
+@app.route('/club_selection', methods=["GET", "POST"])
+def club_selection():
+    student_id = session.get("student_id")
+    if not student_id:
+        return redirect(url_for("login"))
+
+    student = db.collection("students").document(student_id).get()
+    if not student.exists:
+        return redirect(url_for("logout"))
+
+    if not is_selection_open():
+        flash("Selection window is closed.", "error")
+        return redirect(url_for("student_dashboard"))
+
+    deadline_doc = db.collection("config").document("deadline").get()
+    deadline = deadline_doc.to_dict().get("end_time") if deadline_doc.exists else None
+
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
-        user_type = request.form.get("role")
+        club_id = request.form.get("club_id")
+        club_doc = db.collection("clubs").document(club_id).get()
+        if not club_doc.exists:
+            flash("Selected club does not exist.", "error")
+            return redirect(url_for("club_selection"))
 
-        if not user_type:
-            return render_template("login.html", error="Please select a role.")
+        db.collection("students").document(student_id).update({
+            "SelectedClub": club_id
+        })
+        flash("Club selected successfully!", "success")
+        return redirect(url_for("student_dashboard"))
 
-        if user_type == "student":
-            students = db.collection("students").where("email", "==", email).stream()
-            for student in students:
-                student_data = student.to_dict()
-                if student_data["password"] == password:
-                    session["student_id"] = student.id
-                    return redirect(url_for("student_dashboard"))
-            return render_template("login.html", error="Invalid student credentials.")
-
-        elif user_type == "admin":
-            if email == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-                session["admin"] = True
-                return redirect(url_for("admin_dashboard"))
-            else:
-                return render_template("login.html", error="Invalid admin credentials.")
-        else:
-            return render_template("login.html", error="Invalid role selected.")
-
-    return render_template("login.html")
-
-@app.route('/admin')
-def admin_dashboard():
-    if 'admin' not in session:
-        return redirect(url_for('home'))
-    return render_template('admin.html')
-
-@app.route('/upload_students', methods=['POST'])
-def upload_students():
-    if 'admin' not in session:
-        return redirect(url_for('home'))
-
-    file = request.files['students_file']
-    if file and file.filename.endswith('.xlsx'):
-        df = pd.read_excel(file)
-        df.columns = df.columns.str.strip()
-
-        for _, row in df.iterrows():
-            student_id = str(row['StudentID']).strip()
-            data = {
-                'name': row['StudentName'],
-                'email': row['EmailID'],
-                'grade': row['GradeSection'],
-                'password': str(row['Password']),
-                'selected_club': ''
-            }
-            db.collection("students").document(student_id).set(data)
-        flash("Student data uploaded successfully", "success")
-    else:
-        flash("Invalid file. Please upload a .xlsx file.", "error")
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/upload_clubs', methods=['POST'])
-def upload_clubs():
-    if 'admin' not in session:
-        return redirect(url_for('home'))
-
-    file = request.files['clubs_file']
-    if file and file.filename.endswith('.xlsx'):
-        df = pd.read_excel(file)
-        df.columns = df.columns.str.strip()
-
-        for _, row in df.iterrows():
-            club_id = str(row['ClubID']).strip()
-            data = {
-                'name': row['ClubName'],
-                'description': row['Description'],
-                'max_members': int(row['MaxMembers']),
-                'selected_students': []
-            }
-            db.collection("clubs").document(club_id).set(data)
-        flash("Club data uploaded successfully", "success")
-    else:
-        flash("Invalid file. Please upload a .xlsx file.", "error")
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/clear_club_selections')
-def clear_selections():
-    if 'admin' not in session:
-        return redirect(url_for('home'))
-
-    for student in db.collection("students").stream():
-        db.collection("students").document(student.id).update({'selected_club': ''})
-    for club in db.collection("clubs").stream():
-        db.collection("clubs").document(club.id).update({'selected_students': []})
-
-    flash("All club selections have been cleared.", "info")
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/clear_all_data')
-def clear_all_data():
-    if 'admin' not in session:
-        return redirect(url_for('home'))
-
-    for student in db.collection("students").stream():
-        db.collection("students").document(student.id).delete()
-    for club in db.collection("clubs").stream():
-        db.collection("clubs").document(club.id).delete()
-
-    flash("All student and club data has been deleted.", "warning")
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/download_all_students')
-def download_all_students():
-    if 'admin' not in session:
-        return redirect(url_for('home'))
-
-    students_raw = db.collection("students").stream()
-    clubs_raw = {doc.id: doc.to_dict() for doc in db.collection("clubs").stream()}
-
-    data = []
-    for doc in students_raw:
-        s = doc.to_dict()
-        club_name = clubs_raw[s['selected_club']]['name'] if s.get('selected_club') in clubs_raw else ''
-        grade = s.get('grade', '')
-        data.append({
-            'Student ID': doc.id,
-            'Name': s['name'],
-            'Grade': grade,
-            'Club': club_name or '—'
+    clubs = []
+    for c in db.collection("clubs").stream():
+        data = c.to_dict()
+        clubs.append({
+            "id": c.id,
+            "name": data.get("Name", data.get("ClubName", "")),
+            "description": data.get("Description", ""),
+            "current_members": data.get("CurrentMembers", 0),
+            "max_members": data.get("MaxMembers", 0)
         })
 
-    df = pd.DataFrame(data)
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name="Selections")
-    output.seek(0)
+    student_data = student.to_dict()
+    selected_club = student_data.get("SelectedClub")
 
-    return send_file(output, as_attachment=True, download_name="student_selections.xlsx",
-                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-
-@app.route('/clubs', methods=['GET', 'POST'])
-def choose_club():
-    if 'student_id' not in session:
-        return redirect(url_for('home'))
-
-    now = datetime.now(IST)
-    if now < SELECTION_START:
-        flash("Club selection has not opened yet.", "info")
-        return redirect(url_for('student_dashboard'))
-    if now > SELECTION_DEADLINE:
-        flash("Club selection is closed.", "error")
-        return redirect(url_for('student_dashboard'))
-
-    student_id = session['student_id']
-    student_ref = db.collection('students').document(student_id)
-    student = student_ref.get().to_dict()
-
-    if request.method == 'POST':
-        new_club_id = request.form['club_id']
-        new_club_ref = db.collection("clubs").document(new_club_id)
-        new_club = new_club_ref.get().to_dict()
-
-        if not new_club:
-            flash("Selected club not found.", "error")
-            return redirect(url_for("choose_club"))
-
-        prev_club_id = student.get("selected_club")
-        if prev_club_id and prev_club_id != new_club_id:
-            prev_club_ref = db.collection("clubs").document(prev_club_id)
-            prev_club = prev_club_ref.get().to_dict()
-            if prev_club and student_id in prev_club.get("selected_students", []):
-                prev_students = prev_club["selected_students"]
-                prev_students.remove(student_id)
-                prev_club_ref.update({"selected_students": prev_students})
-
-        current_students = new_club.get("selected_students", [])
-        if len(current_students) >= new_club["max_members"]:
-            flash("The selected club is full. Please choose another one.", "error")
-            return redirect(url_for("choose_club"))
-
-        if student_id not in current_students:
-            current_students.append(student_id)
-            new_club_ref.update({"selected_students": current_students})
-            student_ref.update({"selected_club": new_club_id})
-            flash("Club changed successfully!", "success")
-
-        return redirect(url_for("choose_club"))
-
-    clubs = {
-        doc.id: {
-            **doc.to_dict(),
-            "id": doc.id,
-            "member_count": len(doc.to_dict().get("selected_students", []))
-        }
-        for doc in db.collection("clubs").stream()
-    }
-
-    return render_template(
-        'club_selection.html',
-        student=student,
-        student_id=student_id,
+    return render_template("club_selection.html", 
         clubs=clubs,
-        selection_start=SELECTION_START,
-        selection_deadline=SELECTION_DEADLINE,
-        current_time=now
+        selected_club=selected_club,
+        is_selection_active=is_selection_open(),
+        deadline=deadline
     )
 
 @app.route('/student_dashboard')
 def student_dashboard():
-    if 'student_id' not in session:
-        return redirect(url_for('home'))
+    student_id = session.get("student_id")
+    if not student_id:
+        return redirect(url_for("login"))
 
-    student_id = session['student_id']
-    student = db.collection("students").document(student_id).get().to_dict()
-    clubs = {doc.id: doc.to_dict() for doc in db.collection("clubs").stream()}
+    student = db.collection("students").document(student_id).get()
+    if not student.exists:
+        return redirect(url_for("logout"))
 
-    return render_template('student_dashboard.html',
-                           name=student['name'],
-                           email=student['email'],
-                           student_id=student_id,
-                           grade_section=student['grade'],
-                           selected_club=clubs[student['selected_club']]['name'] if student.get('selected_club') else None,
-                           selection_start=SELECTION_START,
-                           selection_deadline=SELECTION_DEADLINE,
-                           current_time=datetime.now(IST))
+    student_data = student.to_dict()
+    club_id = student_data.get("SelectedClub")
+
+    # Get club information if selected
+    selected_club_info = None
+    if club_id:
+        club_doc = db.collection("clubs").document(club_id).get()
+        if club_doc.exists:
+            club_data = club_doc.to_dict()
+            selected_club_info = {
+                "id": club_id,
+                "name": club_data.get("Name", club_data.get("ClubName", "Unnamed Club")),
+                "description": club_data.get("Description", "")
+            }
+
+    # Get deadline info
+    deadline_doc = db.collection("config").document("deadline").get()
+    deadline = deadline_doc.to_dict().get("end_time") if deadline_doc.exists else None
+    deadline_passed = False
+    if deadline:
+        tz = pytz.timezone("Asia/Kolkata")
+        now = datetime.now(tz)
+        deadline_passed = now > deadline
+
+    return render_template("student_dashboard.html",
+        student={
+            "id": student_id,
+            "name": student_data.get("Name", student_data.get("StudentName", "Student")),
+            "email": student_data.get("EmailID", ""),
+            "grade": student_data.get("GradeSection", ""),
+            "selected_clubs": [selected_club_info] if selected_club_info else []
+        },
+        is_selection_open=is_selection_open(),
+        deadline=deadline,
+        deadline_passed=deadline_passed,
+        max_selections=1
+    )
+
+@app.route('/login', methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        session.pop('_flashes', None)
+        
+        user_type = request.form.get("user_type")
+        user_id = request.form.get("user_id").strip().lower()
+        password = request.form.get("password")
+
+        if user_type == "admin":
+            if user_id == "admin@treamis.org" and password == "admin@2025":
+                session['admin'] = True
+                return redirect(url_for('admin_dashboard'))
+            flash("Invalid admin credentials", "error")
+            return redirect(url_for('login'))
+
+        elif user_type == "student":
+            try:
+                print(f"Attempting login with email: {user_id}")  # Debug log
+                
+                # First check if the email is in the correct format
+                if '@' not in user_id:
+                    flash("Invalid email format", "error")
+                    return redirect(url_for('login'))
+                
+                # For treamis.org emails, keep the dots in the username part
+                if user_id.endswith('@treamis.org'):
+                    normalized_email = user_id.lower().strip()
+                else:
+                    # For other domains, you might want different normalization
+                    normalized_email = user_id.lower().strip()
+                
+                print(f"Normalized email: {normalized_email}")  # Debug log
+                
+                # Query with the exact email
+                students_ref = db.collection("students")
+                query = students_ref.where("EmailID", "==", normalized_email).limit(1)
+                results = list(query.stream())
+                
+                if results:
+                    student = results[0]
+                    student_data = student.to_dict()
+                    stored_password = str(student_data.get("Password", ""))
+                    print(f"Found student: {student.id}")  # Debug log
+                    print(f"Stored password: {stored_password}")  # Debug log
+                    print(f"Input password: {password}")  # Debug log
+                    
+                    if stored_password == str(password):
+                        session['student_id'] = student.id
+                        print("Login successful!")  # Debug log
+                        return redirect(url_for('student_dashboard'))
+                    else:
+                        print("Password mismatch")  # Debug log
+                else:
+                    print("No student found with this email")  # Debug log
+                
+                flash("Invalid email or password", "error")
+            except Exception as e:
+                print(f"Login error: {str(e)}")  # Debug log
+                flash("System error during login", "error")
+            return redirect(url_for('login'))
+
+    return render_template("login.html")
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('home'))
+    return redirect(url_for('login'))
+
+@app.route('/admin', methods=["GET", "POST"])
+def admin_dashboard():
+    if not session.get('admin'):
+        return redirect(url_for('login'))
+
+    action = request.form.get("action")
+
+    if action == "upload":
+        student_file = request.files.get("student_file")
+        club_file = request.files.get("club_file")
+
+        if student_file and club_file:
+            try:
+                # Process student file
+                student_df = pd.read_excel(student_file)
+                for _, row in student_df.iterrows():
+                    sid = str(row.iloc[0])
+                    data = {k: v for k, v in row.dropna().to_dict().items() 
+                           if not str(k).startswith('Unnamed')}
+                    
+                    # Standardize field names
+                    if 'StudentName' in data:
+                        data['Name'] = data.pop('StudentName')
+                    
+                    # Clean email format
+                    if 'EmailID' in data and isinstance(data['EmailID'], str):
+                        data['EmailID'] = data['EmailID'].lower().strip()
+                    
+                    db.collection("students").document(sid).set(data)
+
+                # Process club file
+                club_df = pd.read_excel(club_file)
+                for _, row in club_df.iterrows():
+                    cid = str(row.iloc[0])
+                    data = {k: v for k, v in row.dropna().to_dict().items() 
+                           if not str(k).startswith('Unnamed')}
+                    db.collection("clubs").document(cid).set(data)
+
+                flash("Student and Club data uploaded successfully.", "success")
+            except Exception as e:
+                flash(f"Upload failed: {e}", "error")
+
+    elif action == "set_window":
+        start = request.form.get("start_time")
+        end = request.form.get("end_time")
+        try:
+            tz = pytz.timezone("Asia/Kolkata")
+            start_dt = datetime.strptime(start, "%Y-%m-%dT%H:%M").astimezone(tz)
+            end_dt = datetime.strptime(end, "%Y-%m-%dT%H:%M").astimezone(tz)
+            db.collection("config").document("deadline").set({
+                "start_time": start_dt,
+                "end_time": end_dt
+            })
+            flash("Selection window updated successfully.", "success")
+        except Exception as e:
+            flash(f"Failed to set selection window: {e}", "error")
+
+
+    elif action == "export":
+        students = db.collection("students").stream()
+        rows = []
+        for s in students:
+            data = s.to_dict()
+        
+            # Get club name if selected
+            club_name = ""
+            selected_club_id = data.get("SelectedClub", "")
+            if selected_club_id:
+                club_doc = db.collection("clubs").document(selected_club_id).get()
+                if club_doc.exists:
+                    club_data = club_doc.to_dict()
+                    club_name = club_data.get("Name", club_data.get("ClubName", ""))
+        
+            rows.append({
+            "Student ID": s.id,
+            "Student Name": data.get("Name", data.get("StudentName", "")),
+            "Grade/Section": data.get("GradeSection", ""),
+            "Selected Club ID": selected_club_id,
+            "Club Name": club_name
+            })
+
+        df = pd.DataFrame(rows)
+        output = BytesIO()
+        df.to_excel(output, index=False)
+        output.seek(0)
+        return send_file(output, download_name="club_selections.xlsx", as_attachment=True)
+    
+    
+
+    elif action == "clear":
+        students = db.collection("students").stream()
+        for s in students:
+            db.collection("students").document(s.id).update({"SelectedClub": firestore.DELETE_FIELD})
+        flash("All selections cleared.", "success")
+
+    selection_doc = db.collection("config").document("deadline").get()
+    selection_start = selection_doc.to_dict().get("start_time") if selection_doc.exists else None
+    selection_end = selection_doc.to_dict().get("end_time") if selection_doc.exists else None
+
+    student_count = len(list(db.collection("students").stream()))
+    club_count = len(list(db.collection("clubs").stream()))
+
+    return render_template("admin.html",
+        selection_start=selection_start,
+        selection_end=selection_end,
+        is_selection_active=is_selection_open(),
+        student_count=student_count,
+        club_count=club_count
+    )
+
+@app.route('/view_results')
+def view_results():
+    if not session.get('admin'):
+        return redirect(url_for('login'))
+
+    students = db.collection("students").stream()
+    selected_by_grade = {}
+    not_selected_by_grade = {}
+
+    for s in students:
+        data = s.to_dict()
+
+        name = data.get("Name", data.get("StudentName", "Unnamed"))
+        email = data.get("EmailID", "N/A")
+        grade = data.get("GradeSection", "Unspecified")
+
+        club_id = data.get("SelectedClub")
+        if club_id:
+            club_doc = db.collection("clubs").document(club_id).get()
+            if club_doc.exists:
+                club_data = club_doc.to_dict()
+                club_name = club_data.get("Name", club_data.get("ClubName", club_id))
+            else:
+                club_name = "Unknown Club"
+            group = selected_by_grade.setdefault(grade, [])
+            group.append({
+                "StudentID": s.id,
+                "Name": name,
+                "Email": email,
+                "SelectedClub": club_name
+            })
+        else:
+            group = not_selected_by_grade.setdefault(grade, [])
+            group.append({
+                "StudentID": s.id,
+                "Name": name,
+                "Email": email,
+                "SelectedClub": "Not Selected"
+            })
+
+    return render_template("view_results.html", 
+        selected_by_grade=selected_by_grade,
+        not_selected_by_grade=not_selected_by_grade
+    )
+
+
+
 
 if __name__ == "__main__":
-    app.run()
+    # Run data cleanup when starting the app
+    clean_student_data()
+    app.run(debug=True)

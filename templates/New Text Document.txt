@@ -1,0 +1,170 @@
+# 🏫 Treamis Club Selection Web App
+
+A full-featured Flask web application to manage student club selections at Treamis School. The platform enables admins to upload student and club data, set selection windows, and monitor participation—while students can log in, view clubs, and make their selections.
+
+Live Demo: [https://treamis-club-selection.onrender.com](https://treamis-club-selection.onrender.com)
+
+---
+
+## ✨ Features
+
+### 👩‍🏫 Admin Side
+
+* Secure admin login
+* Upload student and club data via Excel
+* Set and enforce club selection start/end dates
+* View/export student selections to Excel
+* Clear/reset all selections
+* Track selection capacity and lock clubs if full
+
+### 👨‍🏫 Student Side
+
+* Student login with ID/password
+* View profile and clubs
+* Select clubs (up to 3 choices)
+* Visual alerts for selection deadlines
+* Prevent selection after deadline or if club is full
+
+---
+
+## 🗂️ Tech Stack
+
+* **Frontend:** HTML, Tailwind CSS (Dark-themed UI with gold accents)
+* **Backend:** Python, Flask
+* **Database:** Google Firestore (via Firebase Admin SDK)
+* **Deployment:** Render
+* **Other:** Pandas, dotenv
+
+---
+
+## 📸 Screenshots
+
+| Login Page                      | Student Dashboard                             | Admin Dashboard                           |
+| ------------------------------- | --------------------------------------------- | ----------------------------------------- |
+| ![login](screenshots/login.png) | ![student](screenshots/student_dashboard.png) | ![admin](screenshots/admin_dashboard.png) |
+
+> Screenshots folder should contain relevant `.png` files for GitHub display.
+
+---
+
+## 📁 Folder Structure
+
+```
+fresh-club-selection/
+│
+├── static/
+│   └── styles.css (Tailwind CSS config)
+│
+├── templates/
+│   ├── login.html
+│   ├── student_dashboard.html
+│   ├── club_selection.html
+│   ├── admin_dashboard.html
+│   └── view_results.html
+│
+├── uploads/
+│   └── (uploaded Excel files)
+│
+├── app.py
+├── firebase_key.json
+├── requirements.txt
+├── render.yaml
+├── .env
+└── README.md
+```
+
+---
+
+## ⚙️ Setup Instructions
+
+### 🔧 Prerequisites
+
+* Python 3.10+
+* Firebase Admin SDK service account key (`firebase_key.json`)
+* `.env` file with the following:
+
+```env
+SECRET_KEY=your_secret_key
+FIREBASE_TYPE=...
+FIREBASE_PROJECT_ID=...
+...
+```
+
+### 🔪 Local Setup
+
+1. **Clone the repo**
+
+```bash
+git clone https://github.com/yourusername/fresh-club-selection.git
+cd fresh-club-selection
+```
+
+2. **Create virtual environment**
+
+```bash
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+```
+
+3. **Install dependencies**
+
+```bash
+pip install -r requirements.txt
+```
+
+4. **Run the app**
+
+```bash
+flask run
+```
+
+App will run on: `http://127.0.0.1:5000`
+
+---
+
+## 🚀 Deployment (Render)
+
+1. Push your code to GitHub
+
+2. On [Render.com](https://render.com):
+
+   * Create a new **Web Service**
+   * Select your GitHub repo
+   * Add **Environment Variables** from `.env`
+   * Add `firebase_key.json` as a **Secret File**
+   * Build Command: `pip install -r requirements.txt`
+   * Start Command: `gunicorn app:app`
+
+3. Include a `render.yaml` for infrastructure-as-code deployment.
+
+---
+
+## 📊 Sample Excel Formats
+
+### `students.xlsx`
+
+| student\_id | name       | grade | password |
+| ----------- | ---------- | ----- | -------- |
+| S123        | John Smith | 6     | john123  |
+
+### `clubs.xlsx`
+
+| club\_name    | category | capacity |
+| ------------- | -------- | -------- |
+| Robotics Club | STEM     | 20       |
+
+---
+
+## 📌 To-Do / Enhancements
+
+* [ ] Email notifications to students
+* [ ] Admin activity logs
+* [ ] Analytics dashboard (club popularity etc.)
+* [ ] Mobile-friendly UI
+* [ ] Student club preference editing (before deadline)
+
+---
+
+## 📃 License
+
+This project is for educational and internal school use only. All rights reserved © Treamis School.

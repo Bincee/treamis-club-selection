@@ -1,6 +1,6 @@
 Flask
-gunicorn
 firebase-admin
 pandas
-openpyxl
 python-dotenv
+openpyxl
+pytz

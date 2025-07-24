@@ -2,96 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Choose Your Club</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Club Selection</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gradient-to-br from-indigo-100 to-blue-100 min-h-screen py-8 px-4">
-
-  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg p-6">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-gray-800">Welcome, {{ student.name }}</h1>
-      <a href="/logout" class="text-red-500 hover:text-red-700 font-medium">Logout</a>
+<body class="bg-gray-900 text-white min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold text-yellow-400">Club Selection</h1>
+      <a href="/student_dashboard" class="text-blue-400 hover:text-blue-300 font-semibold">Back</a>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="space-y-3 mb-6">
-          {% for category, message in messages %}
-            <div class="p-3 rounded font-semibold shadow 
-                        {% if category == 'success' %}bg-green-100 text-green-800
-                        {% elif category == 'error' %}bg-red-100 text-red-800
-                        {% else %}bg-blue-100 text-blue-800{% endif %}">
-              {{ message }}
-            </div>
-          {% endfor %}
+      {% for category, message in messages %}
+        <div class="p-4 rounded-lg mb-4 {% if category == 'success' %}bg-green-600{% elif category == 'error' %}bg-red-600{% else %}bg-yellow-600{% endif %}">
+          {{ message }}
         </div>
-      {% endif %}
+      {% endfor %}
     {% endwith %}
 
-    <div class="bg-gray-50 p-4 rounded-lg shadow mb-6">
-      <p class="text-gray-700"><strong>Student ID:</strong> {{ student_id }}</p>
-      <p class="text-gray-700"><strong>Email:</strong> {{ student.email }}</p>
-      <p class="text-gray-700"><strong>Grade & Section:</strong> {{ student.grade }}</p>
-      <p class="text-gray-700"><strong>Current Club:</strong>
-        {% if student.selected_club %}
-          {{ clubs[student.selected_club]['name'] }}
-        {% else %}
-          <em>No club selected</em>
-        {% endif %}
-      </p>
-    </div>
-
-    <h2 class="text-xl font-semibold text-gray-800 mb-4">Select / Change Your Club</h2>
+    {% if not is_selection_active %}
+      <div class="bg-red-600 text-white p-4 rounded-lg text-center font-semibold">
+        Club selection is currently closed
+      </div>
+    {% else %}
+      <div class="bg-blue-600 text-white p-4 rounded-lg mb-6 text-center font-semibold">
+        Selection closes on: {{ deadline.strftime('%Y-%m-%d %H:%M') }}
+      </div>
+    {% endif %}
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {% for club in clubs.values() %}
-        <div class="p-4 border rounded-lg shadow 
-                    {% if club.id == student.selected_club %}border-green-500 bg-green-50
-                    {% else %}border-gray-300 bg-white{% endif %}">
-          <div class="flex justify-between items-center mb-2">
-            <h3 class="text-lg font-bold text-gray-800">{{ club.name }}</h3>
-            <span class="text-xs font-semibold px-2 py-1 rounded 
-              {% if club.member_count >= club.max_members and club.id != student.selected_club %}
-                bg-red-200 text-red-800
-              {% elif club.id == student.selected_club %}
-                bg-green-200 text-green-800
-              {% else %}
-                bg-blue-200 text-blue-800
-              {% endif %}
-            ">
-              {% if club.member_count >= club.max_members and club.id != student.selected_club %}
-                Full
-              {% elif club.id == student.selected_club %}
-                Joined
-              {% else %}
-                Available
-              {% endif %}
-            </span>
-          </div>
+      {% for club in clubs %}
+        <div class="p-6 rounded-xl shadow-md bg-gray-800 border-2
+          {% if club.id == selected_club %}border-green-500{% elif club.current_members >= club.max_members %}border-red-500 opacity-60{% else %}border-yellow-500{% endif %}">
+          <h2 class="text-xl font-bold text-yellow-300 mb-2">{{ club.name }}</h2>
+          <p class="text-sm text-gray-400 mb-2">{{ club.description }}</p>
+          <p class="text-sm text-gray-500 mb-4">Members: {{ club.current_members }}/{{ club.max_members }}</p>
 
-          <p class="text-sm text-gray-600 mb-2">{{ club.description }}</p>
-          <p class="text-sm text-gray-700 mb-4">👥 Members: {{ club.member_count }} / {{ club.max_members }}</p>
-
-          {% if club.id == student.selected_club %}
-            <button class="w-full bg-green-500 text-white py-2 rounded font-semibold" disabled>
-              Selected
-            </button>
-          {% elif club.member_count >= club.max_members %}
-            <button class="w-full bg-gray-300 text-gray-600 py-2 rounded font-semibold" disabled>
-              Club Full
-            </button>
-          {% else %}
-            <form method="POST" action="{{ url_for('choose_club') }}">
-              <input type="hidden" name="club_id" value="{{ club.id }}">
-              <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded font-semibold">
-                Choose
-              </button>
+          {% if club.id == selected_club %}
+            <form method="POST" action="{{ url_for('club_selection') }}">
+              <input type="hidden" name="club_id" value="">
+              <button class="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded font-semibold">Remove Selection</button>
             </form>
+          {% elif is_selection_active and club.current_members < club.max_members %}
+            <form method="POST" action="{{ url_for('club_selection') }}">
+              <input type="hidden" name="club_id" value="{{ club.id }}">
+              <button class="w-full bg-yellow-500 hover:bg-yellow-600 text-black py-2 px-4 rounded font-semibold">Select Club</button>
+            </form>
+          {% else %}
+            <button disabled class="w-full bg-gray-500 text-white py-2 px-4 rounded font-semibold cursor-not-allowed">Club Full</button>
           {% endif %}
         </div>
       {% endfor %}
     </div>
   </div>
-
 </body>
 </html>

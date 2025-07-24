@@ -1,3 +1,10 @@
-firebase_config.json 
-
+# .gitignore
 firebase_key.json
+.env
+*.xlsx
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env.*
+.DS_Store

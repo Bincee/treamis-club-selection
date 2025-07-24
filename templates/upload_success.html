@@ -3,69 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <title>Upload Success</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    body {
-      background-color: #1e1e2f;
-      font-family: 'Segoe UI', sans-serif;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+    .success-box {
+      background-color: #2d3748;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      border: 1px solid #4a5568;
     }
-
-    .box {
-      background-color: #2b2b3d;
-      padding: 40px;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
-      text-align: center;
-      max-width: 500px;
-      width: 90%;
-    }
-
-    h1 {
+    .success-icon {
+      font-size: 4rem;
       color: #4CAF50;
-      margin-bottom: 20px;
+      margin-bottom: 1rem;
     }
-
-    p {
-      font-size: 18px;
-      margin: 10px 0;
+    .btn-primary {
+      background-color: #f6ad55;
+      transition: all 0.3s;
     }
-
-    .btn {
-      margin-top: 30px;
-      padding: 10px 20px;
-      background-color: #ffcc00;
-      color: #000;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    .btn:hover {
-      background-color: #e6b800;
-    }
-
-    .small {
-      font-size: 14px;
-      margin-top: 10px;
-      color: #aaa;
+    .btn-primary:hover {
+      background-color: #ed8936;
+      transform: translateY(-2px);
     }
   </style>
 </head>
-<body>
-  <div class="box">
-    <h1>✅ Upload Successful!</h1>
-    <p>{{ count }} students added to the database.</p>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4">
+  <div class="success-box rounded-xl p-8 max-w-md w-full text-center">
+    <div class="success-icon">✓</div>
+    <h1 class="text-2xl font-bold text-green-400 mb-4">Upload Successful!</h1>
+    
+    <div class="mb-6 space-y-2">
+      <p class="text-lg">
+        <span class="font-semibold">{{ student_count }}</span> students added
+      </p>
+      <p class="text-lg">
+        <span class="font-semibold">{{ club_count }}</span> clubs added
+      </p>
+    </div>
 
-    <a href="/admin" class="btn">Back to Admin Dashboard</a>
+    <a href="/admin" class="btn-primary text-black font-bold py-3 px-6 rounded-lg inline-block">
+      Back to Admin Dashboard
+    </a>
 
-    <p class="small">Thank you for keeping the database updated.</p>
+    <p class="text-xs text-gray-400 mt-4">
+      Data processed successfully at {{ timestamp.strftime('%Y-%m-%d %H:%M') }}
+    </p>
   </div>
 </body>
 </html>

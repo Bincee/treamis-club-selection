@@ -3,108 +3,112 @@
 <head>
   <meta charset="UTF-8">
   <title>Student Dashboard</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    body {
-      background-color: #1e1e2f;
-      font-family: 'Segoe UI', sans-serif;
-      color: #fff;
-      margin: 0;
-      padding: 0;
+    .club-card {
+      transition: all 0.3s;
     }
-
-    .dashboard {
-      max-width: 800px;
-      margin: 50px auto;
-      padding: 30px;
-      background-color: #2b2b3d;
-      border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.3);
-      text-align: center;
+    .club-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
     }
-
-    .logo {
-      max-width: 90px;
-      margin-bottom: 10px;
+    .selection-btn {
+      transition: all 0.2s;
     }
-
-    h1 {
-      color: #ffcc00;
-    }
-
-    .info-box {
-      background-color: #3a3a4e;
-      padding: 20px;
-      margin: 20px 0;
-      border-radius: 10px;
-    }
-
-    .info-box p {
-      font-size: 18px;
-      margin: 5px 0;
-    }
-
-    .btn {
-      display: inline-block;
-      background-color: #ffcc00;
-      color: #000;
-      font-weight: bold;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      margin-top: 20px;
-      text-decoration: none;
-      cursor: pointer;
-    }
-
-    .btn:hover {
-      background-color: #e6b800;
-    }
-
-    .logout {
-      position: absolute;
-      top: 20px;
-      right: 30px;
-      background: #ff4d4d;
-      color: #fff;
-      padding: 8px 14px;
-      border: none;
-      border-radius: 5px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .logout:hover {
-      background: #e04343;
+    .selection-btn:hover {
+      transform: scale(1.05);
     }
   </style>
 </head>
-<body>
-
-  <button class="logout" onclick="window.location.href='/logout'">Logout</button>
-
-  <div class="dashboard">
-    <img src="{{ url_for('static', filename='logo.jpg') }}" alt="School Logo" class="logo">
-    <h1>Welcome, {{ name }}!</h1>
-
-    <div class="info-box">
-      <p><strong>Student ID:</strong> {{ student_id }}</p>
-      <p><strong>Email:</strong> {{ email }}</p>
-      <p><strong>Grade & Section:</strong> {{ grade_section }}</p>
+<body class="bg-gray-900 text-white min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-yellow-400">Welcome, {{ student.name }}</h1>
+        <p class="text-gray-400">{{ student.grade }}</p>
+      </div>
+      <a href="/logout" class="text-red-400 hover:text-red-300 font-semibold">Logout</a>
     </div>
 
-    {% if selected_club %}
-      <p>You have selected: <strong>{{ selected_club }}</strong></p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-6 space-y-2">
+          {% for category, message in messages %}
+            <div class="p-4 rounded-lg
+              {% if category == 'error' %}bg-red-600{% elif category == 'success' %}bg-green-600{% else %}bg-yellow-600{% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% if deadline_passed %}
+      <div class="bg-red-600 text-white p-4 rounded-lg mb-6 text-center font-bold">
+        ⛔ Club selection is now closed.
+      </div>
+    {% else %}
+      <div class="bg-green-700 text-white p-4 rounded-lg mb-6 text-center font-semibold">
+        {% if deadline %}
+          🟢 Selection open till: {{ deadline.strftime('%Y-%m-%d %H:%M') }}
+        {% else %}
+          🟢 Selection window is open
+        {% endif %}
+      </div>
     {% endif %}
 
-    <a class="btn" href="/clubs">
-      {% if selected_club %}
-        Manage Your Club
-      {% else %}
-        Choose Your Club
-      {% endif %}
-    </a>
-  </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="bg-gray-800 p-6 rounded-xl border-l-4 border-yellow-500 shadow-lg">
+        <h2 class="text-xl font-semibold text-yellow-300 mb-4">Your Information</h2>
+        <div class="space-y-2">
+          <p><span class="font-semibold">Student ID:</span> {{ student.id }}</p>
+          <p><span class="font-semibold">Name:</span> {{ student.name }}</p>
+          <p><span class="font-semibold">Grade/Section:</span> {{ student.grade }}</p>
+          <p><span class="font-semibold">Email:</span> {{ student.email }}</p>
+        </div>
+      </div>
 
+      <div class="bg-gray-800 p-6 rounded-xl border-l-4 border-yellow-500 shadow-lg">
+        <h2 class="text-xl font-semibold text-yellow-300 mb-4">Your Clubs</h2>
+        {% if student.selected_clubs %}
+          <div class="space-y-4">
+            {% for club in student.selected_clubs %}
+              <div class="club-card bg-gray-700 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold text-yellow-300">{{ club.name }}</h3>
+                {% if club.description %}
+                  <p class="text-gray-300 mt-2">{{ club.description }}</p>
+                {% endif %}
+                <div class="mt-3 flex items-center">
+                  <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                  <span class="text-sm text-green-400">Selected</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          <p class="text-sm text-gray-400 mt-3">
+            Selected {{ student.selected_clubs|length }} of {{ max_selections }} clubs
+          </p>
+        {% else %}
+          <div class="text-center py-4">
+            <p class="text-gray-400 mb-4">No clubs selected yet</p>
+            {% if not deadline_passed %}
+              <a href="/club_selection" class="text-yellow-400 hover:text-yellow-300 font-semibold">
+                Select your club now →
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if not deadline_passed %}
+      <div class="text-center">
+        <a href="/club_selection"
+           class="inline-block bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-6 rounded-full shadow-lg transition selection-btn">
+          {{ 'Select Clubs' if not student.selected_clubs else 'Modify Selection' }}
+        </a>
+      </div>
+    {% endif %}
+  </div>
 </body>
 </html>
