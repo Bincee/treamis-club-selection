@@ -84,7 +84,8 @@ def club_selection():
     if not student_id:
         return redirect(url_for("login"))
 
-    student = db.collection("students").document(student_id).get()
+    student_ref = db.collection("students").document(student_id)
+    student = student_ref.get()
     if not student.exists:
         return redirect(url_for("logout"))
 
@@ -98,9 +99,17 @@ def club_selection():
     if request.method == "POST":
         club_id = request.form.get("club_id")
 
+        # Get student's current club before updating
+        student_data = student.to_dict()
+        previous_club_id = student_data.get("SelectedClub")
+
         if not club_id:
             # Allow clearing of selection
-            db.collection("students").document(student_id).update({
+            if previous_club_id:
+                db.collection("clubs").document(previous_club_id).update({
+                    "CurrentMembers": firestore.Increment(-1)
+                })
+            student_ref.update({
                 "SelectedClub": firestore.DELETE_FIELD
             })
             flash("Club selection removed.", "success")
@@ -111,7 +120,18 @@ def club_selection():
             flash("Selected club does not exist.", "error")
             return redirect(url_for("club_selection"))
 
-        db.collection("students").document(student_id).update({
+        # Decrease count from previous club (if different)
+        if previous_club_id and previous_club_id != club_id:
+            db.collection("clubs").document(previous_club_id).update({
+                "CurrentMembers": firestore.Increment(-1)
+            })
+
+        # Increase count in new club
+        db.collection("clubs").document(club_id).update({
+            "CurrentMembers": firestore.Increment(1)
+        })
+
+        student_ref.update({
             "SelectedClub": club_id
         })
         flash("Club selected successfully!", "success")
