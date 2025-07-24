@@ -97,6 +97,15 @@ def club_selection():
 
     if request.method == "POST":
         club_id = request.form.get("club_id")
+
+        if not club_id:
+            # Allow clearing of selection
+            db.collection("students").document(student_id).update({
+                "SelectedClub": firestore.DELETE_FIELD
+            })
+            flash("Club selection removed.", "success")
+            return redirect(url_for("student_dashboard"))
+
         club_doc = db.collection("clubs").document(club_id).get()
         if not club_doc.exists:
             flash("Selected club does not exist.", "error")
@@ -129,6 +138,7 @@ def club_selection():
         deadline=deadline
     )
 
+
 @app.route('/student_dashboard')
 def student_dashboard():
     student_id = session.get("student_id")
@@ -145,14 +155,17 @@ def student_dashboard():
     # Get club information if selected
     selected_club_info = None
     if club_id:
-        club_doc = db.collection("clubs").document(club_id).get()
-        if club_doc.exists:
-            club_data = club_doc.to_dict()
-            selected_club_info = {
-                "id": club_id,
-                "name": club_data.get("Name", club_data.get("ClubName", "Unnamed Club")),
-                "description": club_data.get("Description", "")
-            }
+        try:
+            club_doc = db.collection("clubs").document(club_id).get()
+            if club_doc.exists:
+                club_data = club_doc.to_dict()
+                selected_club_info = {
+                    "id": club_id,
+                    "name": club_data.get("Name", club_data.get("ClubName", "Unnamed Club")),
+                    "description": club_data.get("Description", "")
+                }
+        except Exception as e:
+            print(f"[student_dashboard] Error fetching club {club_id}: {e}")
 
     # Get deadline info
     deadline_doc = db.collection("config").document("deadline").get()
@@ -176,6 +189,7 @@ def student_dashboard():
         deadline_passed=deadline_passed,
         max_selections=1
     )
+
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
