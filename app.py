@@ -32,6 +32,8 @@ def is_selection_open():
         start = data.get("start_time")
         end = data.get("end_time")
         if start and end:
+	    start = start.astimezone(tz)
+            end = end.astimezone(tz)
             return start <= now <= end
     return False
 
@@ -326,9 +328,9 @@ def admin_dashboard():
         start = request.form.get("start_time")
         end = request.form.get("end_time")
         try:
-            tz = pytz.timezone("Asia/Kolkata")
-            start_dt = datetime.strptime(start, "%Y-%m-%dT%H:%M").astimezone(tz)
-            end_dt = datetime.strptime(end, "%Y-%m-%dT%H:%M").astimezone(tz)
+	    tz = pytz.timezone("Asia/Kolkata")
+	    start_dt = tz.localize(datetime.strptime(start, "%Y-%m-%dT%H:%M"))
+	    end_dt = tz.localize(datetime.strptime(end, "%Y-%m-%dT%H:%M"))
             db.collection("config").document("deadline").set({
                 "start_time": start_dt,
                 "end_time": end_dt
