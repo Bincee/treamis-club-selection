@@ -32,7 +32,7 @@ def is_selection_open():
         start = data.get("start_time")
         end = data.get("end_time")
         if start and end:
-	    start = start.astimezone(tz)
+            start = start.astimezone(tz)
             end = end.astimezone(tz)
             return start <= now <= end
     return False
