@@ -328,9 +328,9 @@ def admin_dashboard():
         start = request.form.get("start_time")
         end = request.form.get("end_time")
         try:
-	    tz = pytz.timezone("Asia/Kolkata")
-	    start_dt = tz.localize(datetime.strptime(start, "%Y-%m-%dT%H:%M"))
-	    end_dt = tz.localize(datetime.strptime(end, "%Y-%m-%dT%H:%M"))
+            tz = pytz.timezone("Asia/Kolkata")
+            start_dt = tz.localize(datetime.strptime(start, "%Y-%m-%dT%H:%M"))
+            end_dt = tz.localize(datetime.strptime(end, "%Y-%m-%dT%H:%M"))
             db.collection("config").document("deadline").set({
                 "start_time": start_dt,
                 "end_time": end_dt
