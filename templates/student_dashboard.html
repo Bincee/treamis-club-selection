@@ -50,7 +50,7 @@
     {% else %}
       <div class="bg-green-700 text-white p-4 rounded-lg mb-6 text-center font-semibold">
         {% if deadline %}
-          🟢 Selection open till: {{ deadline.strftime('%Y-%m-%d') }}
+          🟢 Selection open till: {{ deadline.strftime('%Y-%m-%d %I:%M %p') }}
         {% else %}
           🟢 Selection window is open
         {% endif %}
